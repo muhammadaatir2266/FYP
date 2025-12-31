@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { 
   ArrowLeft,
   Stethoscope,
@@ -21,8 +22,10 @@ import {
   PhoneOff,
   Voicemail,
   TrendingUp,
-  Activity
+  Activity,
+  LogOut
 } from 'lucide-react'
+import { getCurrentUser, logoutUser, type User } from '@/lib/auth'
 
 interface Appointment {
   id: string
@@ -66,8 +69,26 @@ const stats = [
 ]
 
 export default function DoctorDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'appointments' | 'calls' | 'messages'>('appointments')
   const [searchQuery, setSearchQuery] = useState('')
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    const user = getCurrentUser()
+    if (!user || user.role !== 'doctor') {
+      router.push('/login')
+    } else {
+      setCurrentUser(user)
+    }
+  }, [router])
+
+  const handleLogout = () => {
+    logoutUser()
+    router.push('/')
+  }
+
+  if (!currentUser) return null
 
   const getCallIcon = (type: CallLog['type']) => {
     switch (type) {
@@ -159,6 +180,13 @@ export default function DoctorDashboard() {
             <Settings className="w-5 h-5" />
             Settings
           </button>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            Logout
+          </button>
           <Link 
             href="/"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
@@ -177,7 +205,7 @@ export default function DoctorDashboard() {
             <h1 className="font-display text-2xl font-bold text-medical-slate">
               Doctor Dashboard
             </h1>
-            <p className="text-slate-500">Welcome back, Dr. Aatir</p>
+            <p className="text-slate-500">Welcome back, {currentUser.name}</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -195,7 +223,7 @@ export default function DoctorDashboard() {
               <span className="absolute top-1 right-1 w-2 h-2 bg-accent-coral rounded-full" />
             </button>
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-medical-teal to-medical-emerald flex items-center justify-center text-white font-semibold">
-              DA
+              {currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase()}
             </div>
           </div>
         </header>

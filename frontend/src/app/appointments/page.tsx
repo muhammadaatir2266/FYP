@@ -392,22 +392,29 @@ export default function AppointmentsPage() {
                   </div>
 
                   {/* Time Slots */}
-                  {selectedDate && (
+                  {selectedDate && availableSlots.length > 0 && (
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         Select Time
                       </label>
-                      <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                      <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1">
                         {availableSlots.map((slot) => (
                           <button
                             key={slot.time}
-                            onClick={() => slot.available && setSelectedTime(slot.time)}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              if (slot.available) {
+                                setSelectedTime(slot.time)
+                              }
+                            }}
                             disabled={!slot.available}
-                            className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                            className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                               selectedTime === slot.time
-                                ? 'bg-medical-teal text-white'
+                                ? 'bg-medical-teal text-white ring-2 ring-medical-teal ring-offset-2'
                                 : slot.available
-                                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95'
                                 : 'bg-slate-50 text-slate-300 cursor-not-allowed'
                             }`}
                           >
