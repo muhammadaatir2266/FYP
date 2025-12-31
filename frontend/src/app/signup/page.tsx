@@ -51,11 +51,11 @@ export default function SignupPage() {
       </div>
 
       {/* Logo - Top Left */}
-      <Link href="/" className="absolute top-6 left-6 flex items-center gap-3 z-10">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-medical-teal to-medical-emerald flex items-center justify-center">
-          <Stethoscope className="w-6 h-6 text-white" />
+      <Link href="/" className="absolute top-4 sm:top-6 left-4 sm:left-6 flex items-center gap-2 sm:gap-3 z-50">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-medical-teal to-medical-emerald flex items-center justify-center shadow-lg">
+          <Stethoscope className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
-        <span className="font-display text-xl font-bold text-medical-slate">
+        <span className="font-display text-lg sm:text-xl font-bold text-medical-slate">
           MediAssist<span className="gradient-text">AI</span>
         </span>
       </Link>
