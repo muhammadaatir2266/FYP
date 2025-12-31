@@ -1,0 +1,274 @@
+{
+  "name": "Doctor Calling Agent Workflow",
+  "description": "VAPI-powered workflow for handling incoming patient calls to doctor's office",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-call-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "vapi-webhook",
+      "name": "VAPI Call Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "notes": "Receives call events from VAPI"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"type\"]}}",
+              "operation": "equals",
+              "value2": "call-started"
+            }
+          ]
+        }
+      },
+      "id": "check-call-started",
+      "name": "Call Started?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"type\"]}}",
+              "operation": "equals",
+              "value2": "call-ended"
+            }
+          ]
+        }
+      },
+      "id": "check-call-ended",
+      "name": "Call Ended?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_URL}}/api/vapi/webhook",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "call-started"
+            },
+            {
+              "name": "call",
+              "value": "={{$json[\"call\"]}}"
+            }
+          ]
+        }
+      },
+      "id": "log-call-start",
+      "name": "Log Call Start to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_URL}}/api/vapi/webhook",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "call-ended"
+            },
+            {
+              "name": "call",
+              "value": "={{$json[\"call\"]}}"
+            },
+            {
+              "name": "transcript",
+              "value": "={{$json[\"transcript\"]}}"
+            },
+            {
+              "name": "summary",
+              "value": "={{$json[\"summary\"]}}"
+            }
+          ]
+        }
+      },
+      "id": "log-call-end",
+      "name": "Log Call End to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"functionName\"]}}",
+              "operation": "equals",
+              "value2": "book_appointment"
+            }
+          ]
+        }
+      },
+      "id": "check-book-appointment",
+      "name": "Book Appointment Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_URL}}/api/appointments",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "doctorId",
+              "value": "={{$json[\"parameters\"][\"doctorId\"]}}"
+            },
+            {
+              "name": "patientName",
+              "value": "={{$json[\"parameters\"][\"patientName\"]}}"
+            },
+            {
+              "name": "patientPhone",
+              "value": "={{$json[\"parameters\"][\"patientPhone\"]}}"
+            },
+            {
+              "name": "scheduledAt",
+              "value": "={{$json[\"parameters\"][\"scheduledAt\"]}}"
+            },
+            {
+              "name": "reason",
+              "value": "={{$json[\"parameters\"][\"reason\"]}}"
+            }
+          ]
+        }
+      },
+      "id": "create-appointment",
+      "name": "Create Appointment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"message\": \"Call event processed\"}"
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "VAPI Call Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Started?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call Ended?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Book Appointment Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Started?": {
+      "main": [
+        [
+          {
+            "node": "Log Call Start to Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Ended?": {
+      "main": [
+        [
+          {
+            "node": "Log Call End to Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book Appointment Request?": {
+      "main": [
+        [
+          {
+            "node": "Create Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Call Start to Backend": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Call End to Backend": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Appointment": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["vapi", "calling-agent", "appointments"],
+  "triggerCount": 0,
+  "versionId": "1"
+}
+

@@ -1,0 +1,30 @@
+# ML Model Dependencies for Disease Prediction
+
+# Core ML Libraries
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.0
+joblib==1.4.2
+
+# Deep Learning (optional, for advanced models)
+# tensorflow==2.16.1
+# torch==2.3.0
+
+# API Framework
+fastapi==0.111.0
+uvicorn==0.30.1
+pydantic==2.7.3
+
+# Data Processing
+nltk==3.8.1
+spacy==3.7.5
+
+# Utilities
+python-dotenv==1.0.1
+requests==2.32.3
+
+# Development
+jupyter==1.0.0
+matplotlib==3.9.0
+seaborn==0.13.2
+

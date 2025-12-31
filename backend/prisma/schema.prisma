@@ -1,0 +1,285 @@
+// Prisma Schema for AI Medical Assistant
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum CallType {
+  INCOMING
+  OUTGOING
+  MISSED
+  VOICEMAIL
+}
+
+enum CallStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  role          UserRole  @default(PATIENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  patient       Patient?
+  doctor        Doctor?
+}
+
+model Patient {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime?
+  gender          Gender?
+  phone           String?
+  address         String?
+  city            String?
+  emergencyContact String?
+  medicalHistory  String?
+  allergies       String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  appointments    Appointment[]
+  chatSessions    ChatSession[]
+  symptoms        PatientSymptom[]
+}
+
+model Doctor {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  firstName       String
+  lastName        String
+  specialtyId     String
+  specialty       Specialty @relation(fields: [specialtyId], references: [id])
+  
+  phone           String
+  address         String
+  city            String
+  latitude        Float?
+  longitude       Float?
+  
+  qualifications  String?
+  experience      Int       @default(0) // years of experience
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  consultationFee Float?
+  
+  availableFrom   String?   // e.g., "09:00"
+  availableTo     String?   // e.g., "17:00"
+  workingDays     String[]  // e.g., ["Monday", "Tuesday", ...]
+  
+  isActive        Boolean   @default(true)
+  isVerified      Boolean   @default(false)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  appointments    Appointment[]
+  callLogs        CallLog[]
+  reviews         Review[]
+}
+
+model Specialty {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  iconName    String?
+  
+  doctors     Doctor[]
+  diseases    Disease[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Symptom {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  severity    Int       @default(1) // 1-5 scale
+  
+  diseases    DiseaseSymptom[]
+  patients    PatientSymptom[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Disease {
+  id              String    @id @default(uuid())
+  name            String    @unique
+  description     String?
+  precautions     String[]
+  recommendedSpecialtyId String?
+  recommendedSpecialty   Specialty? @relation(fields: [recommendedSpecialtyId], references: [id])
+  
+  symptoms        DiseaseSymptom[]
+  predictions     Prediction[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model DiseaseSymptom {
+  id          String    @id @default(uuid())
+  diseaseId   String
+  disease     Disease   @relation(fields: [diseaseId], references: [id], onDelete: Cascade)
+  symptomId   String
+  symptom     Symptom   @relation(fields: [symptomId], references: [id], onDelete: Cascade)
+  weight      Float     @default(1.0) // importance of this symptom for the disease
+  
+  @@unique([diseaseId, symptomId])
+}
+
+model PatientSymptom {
+  id          String    @id @default(uuid())
+  patientId   String
+  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  symptomId   String
+  symptom     Symptom   @relation(fields: [symptomId], references: [id])
+  severity    Int       @default(1) // 1-5 patient-reported severity
+  duration    String?   // e.g., "2 days", "1 week"
+  notes       String?
+  reportedAt  DateTime  @default(now())
+  
+  chatSessionId String?
+  chatSession   ChatSession? @relation(fields: [chatSessionId], references: [id])
+}
+
+model ChatSession {
+  id          String    @id @default(uuid())
+  patientId   String
+  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  
+  messages    ChatMessage[]
+  symptoms    PatientSymptom[]
+  predictions Prediction[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ChatMessage {
+  id            String      @id @default(uuid())
+  chatSessionId String
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  
+  role          String      // "user" or "assistant"
+  content       String
+  
+  createdAt     DateTime    @default(now())
+}
+
+model Prediction {
+  id              String      @id @default(uuid())
+  chatSessionId   String
+  chatSession     ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  
+  diseaseId       String
+  disease         Disease     @relation(fields: [diseaseId], references: [id])
+  
+  confidence      Float       // 0-100 percentage
+  inputSymptoms   String[]    // symptoms used for prediction
+  
+  createdAt       DateTime    @default(now())
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  patientId   String
+  patient     Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId    String
+  doctor      Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  scheduledAt DateTime
+  duration    Int               @default(30) // minutes
+  status      AppointmentStatus @default(PENDING)
+  reason      String?
+  notes       String?
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model CallLog {
+  id          String      @id @default(uuid())
+  doctorId    String
+  doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  callerName  String?
+  callerPhone String
+  callType    CallType
+  status      CallStatus  @default(COMPLETED)
+  
+  startedAt   DateTime    @default(now())
+  endedAt     DateTime?
+  duration    Int?        // seconds
+  
+  summary     String?     // AI-generated call summary
+  transcript  String?     // Full call transcript
+  
+  vapiCallId  String?     // VAPI call reference
+  
+  createdAt   DateTime    @default(now())
+}
+
+model Review {
+  id          String    @id @default(uuid())
+  doctorId    String
+  doctor      Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  reviewerName String
+  rating      Int       // 1-5
+  comment     String?
+  
+  createdAt   DateTime  @default(now())
+}
+
+// ==================== INDEXES ====================
+
+// Add indexes for frequently queried fields
+

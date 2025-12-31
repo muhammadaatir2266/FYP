@@ -1,0 +1,206 @@
+{
+  "name": "Appointment Reminder Workflow",
+  "description": "Sends appointment reminders to patients via email and SMS",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Hourly Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "notes": "Runs every hour to check for upcoming appointments"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.BACKEND_URL}}/api/appointments/upcoming",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "hoursAhead",
+              "value": "24"
+            }
+          ]
+        }
+      },
+      "id": "get-appointments",
+      "name": "Get Upcoming Appointments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json[\"appointments\"].length}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "has-appointments",
+      "name": "Has Appointments?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "appointments"
+      },
+      "id": "split-appointments",
+      "name": "Split Appointments",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@mediassist.com",
+        "toEmail": "={{$json[\"patientEmail\"]}}",
+        "subject": "Appointment Reminder - MediAssist AI",
+        "text": "Dear {{$json[\"patientName\"]}},\n\nThis is a friendly reminder about your upcoming appointment:\n\nDoctor: {{$json[\"doctorName\"]}}\nSpecialty: {{$json[\"specialty\"]}}\nDate & Time: {{$json[\"scheduledAt\"]}}\nLocation: {{$json[\"doctorAddress\"]}}\n\nPlease arrive 10 minutes before your scheduled time.\n\nIf you need to reschedule or cancel, please contact us or reply to this email.\n\nBest regards,\nMediAssist AI Team"
+      },
+      "id": "send-email-reminder",
+      "name": "Send Email Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1050, 100],
+      "notes": "Sends email reminder to patient"
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{$json[\"patientPhone\"]}}",
+        "message": "MediAssist AI Reminder: Your appointment with {{$json[\"doctorName\"]}} is scheduled for {{$json[\"scheduledAt\"]}}. Reply CONFIRM to confirm or CANCEL to cancel."
+      },
+      "id": "send-sms-reminder",
+      "name": "Send SMS Reminder",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "notes": "Sends SMS reminder (requires Twilio setup)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_URL}}/api/webhooks/n8n/notification",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "APPOINTMENT_REMINDER"
+            },
+            {
+              "name": "appointmentId",
+              "value": "={{$json[\"id\"]}}"
+            },
+            {
+              "name": "sentAt",
+              "value": "={{new Date().toISOString()}}"
+            }
+          ]
+        }
+      },
+      "id": "log-reminder",
+      "name": "Log Reminder Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 200]
+    }
+  ],
+  "connections": {
+    "Hourly Check": {
+      "main": [
+        [
+          {
+            "node": "Get Upcoming Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Upcoming Appointments": {
+      "main": [
+        [
+          {
+            "node": "Has Appointments?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Appointments?": {
+      "main": [
+        [
+          {
+            "node": "Split Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Appointments": {
+      "main": [
+        [
+          {
+            "node": "Send Email Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send SMS Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS Reminder": {
+      "main": [
+        [
+          {
+            "node": "Log Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["appointments", "reminders", "notifications"],
+  "triggerCount": 0,
+  "versionId": "1"
+}
+

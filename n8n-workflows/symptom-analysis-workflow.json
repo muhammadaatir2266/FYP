@@ -1,0 +1,197 @@
+{
+  "name": "Symptom Analysis Pipeline Workflow",
+  "description": "Processes patient symptoms through ML model and triggers appropriate actions",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "symptom-analysis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "symptom-webhook",
+      "name": "Symptom Analysis Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "notes": "Receives symptom analysis requests"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.ML_MODEL_URL}}/predict",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "symptoms",
+              "value": "={{$json[\"symptoms\"]}}"
+            }
+          ]
+        }
+      },
+      "id": "ml-prediction",
+      "name": "Get ML Prediction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json[\"confidence\"]}}",
+              "operation": "larger",
+              "value2": 70
+            }
+          ]
+        }
+      },
+      "id": "high-confidence",
+      "name": "High Confidence?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.BACKEND_URL}}/api/doctors/specialty/{{$json[\"specialist\"]}}",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "city",
+              "value": "={{$json[\"patientLocation\"]}}"
+            }
+          ]
+        }
+      },
+      "id": "get-doctors",
+      "name": "Get Recommended Doctors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json[\"urgent\"]}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-urgent",
+      "name": "Is Urgent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{$json[\"patientPhone\"]}}",
+        "message": "URGENT - MediAssist AI: Based on your symptoms, we recommend seeking immediate medical attention. Please visit the nearest emergency room or call emergency services (1122)."
+      },
+      "id": "urgent-sms",
+      "name": "Send Urgent Alert SMS",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify({prediction: $json.prediction, doctors: $json.doctors, urgent: $json.urgent})}}"
+      },
+      "id": "respond-result",
+      "name": "Respond with Results",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Symptom Analysis Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get ML Prediction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get ML Prediction": {
+      "main": [
+        [
+          {
+            "node": "High Confidence?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Confidence?": {
+      "main": [
+        [
+          {
+            "node": "Get Recommended Doctors",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Urgent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recommended Doctors": {
+      "main": [
+        [
+          {
+            "node": "Respond with Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Urgent?": {
+      "main": [
+        [
+          {
+            "node": "Send Urgent Alert SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Urgent Alert SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond with Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["symptoms", "ml-model", "analysis"],
+  "triggerCount": 0,
+  "versionId": "1"
+}
+
