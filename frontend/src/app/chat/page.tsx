@@ -14,7 +14,7 @@ import {
   Phone,
   Star,
   Clock,
-  User,
+  User as UserIcon,
   Loader2,
   LogOut,
   Menu,
@@ -353,7 +353,7 @@ export default function ChatPage() {
                       {message.role === 'assistant' ? (
                         <Brain className="w-5 h-5 text-white" />
                       ) : (
-                        <User className="w-5 h-5 text-slate-600" />
+                        <UserIcon className="w-5 h-5 text-slate-600" />
                       )}
                     </div>
 
